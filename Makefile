@@ -8,6 +8,9 @@ CFLAGS=-Wall -O3 -fomit-frame-pointer
 ifeq ($(BUILD_STATIC),yes)
 	TARGETS+=libmman.a
 	INSTALL+=static-install
+else
+	TARGETS+=libmman.dll
+	INSTALL+=shared-install
 endif
 ifeq ($(BUILD_MSVC),yes)
 	SHFLAGS+=-Wl,--output-def,libmman.def
@@ -23,11 +26,22 @@ libmman.a: mman.o
 	$(AR) cru libmman.a mman.o
 	$(RANLIB) libmman.a
 
-static-install:
-	mkdir -p $(DESTDIR)$(libdir)
-	cp libmman.a $(DESTDIR)$(libdir)
+libmman.dll: mman.o
+	$(CC) -shared -o libmman.dll mman.o -Wl,--out-implib,libmman.dll.a
+
+header-install:
 	mkdir -p $(DESTDIR)$(incdir)
 	cp mman.h $(DESTDIR)$(incdir)
+
+static-install: header-install
+	mkdir -p $(DESTDIR)$(libdir)
+	cp libmman.a $(DESTDIR)$(libdir)
+
+shared-install: header-install
+	mkdir -p $(DESTDIR)$(libdir)
+	cp libmman.dll.a $(DESTDIR)$(libdir)
+	mkdir -p $(DESTDIR)$(libdir)/../bin
+	cp libmman.dll $(DESTDIR)$(libdir)/../bin
 
 lib-install:
 	mkdir -p $(DESTDIR)$(libdir)
@@ -42,7 +56,7 @@ test: $(TARGETS) test.exe
 	test.exe
 
 clean::
-	rm -f mman.o libmman.a libmman.def libmman.lib test.exe *.dat
+	rm -f mman.o libmman.a libmman.dll.a libmman.dll libmman.def libmman.lib test.exe *.dat
 
 distclean: clean
 	rm -f config.mak
