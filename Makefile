@@ -3,6 +3,8 @@
 #
 include config.mak
 
+CFLAGS=-Wall -O3 -fomit-frame-pointer
+
 ifeq ($(BUILD_STATIC),yes)
 	TARGETS+=libmman.a
 	INSTALL+=static-install
@@ -15,7 +17,7 @@ endif
 all: $(TARGETS)
 
 mman.o: mman.c mman.h
-	$(CC) -o mman.o -c mman.c -Wall -O3 -fomit-frame-pointer
+	$(CC) -o mman.o -c mman.c $(CFLAGS)
 
 libmman.a: mman.o
 	$(AR) cru libmman.a mman.o
