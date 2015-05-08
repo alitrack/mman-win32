@@ -8,10 +8,13 @@ CFLAGS=-Wall -O3 -fomit-frame-pointer
 ifeq ($(BUILD_STATIC),yes)
 	TARGETS+=libmman.a
 	INSTALL+=static-install
-else
+endif
+
+ifeq ($(BUILD_SHARED),yes)
 	TARGETS+=libmman.dll
 	INSTALL+=shared-install
 endif
+
 ifeq ($(BUILD_MSVC),yes)
 	SHFLAGS+=-Wl,--output-def,libmman.def
 	INSTALL+=lib-install
@@ -40,8 +43,8 @@ static-install: header-install
 shared-install: header-install
 	mkdir -p $(DESTDIR)$(libdir)
 	cp libmman.dll.a $(DESTDIR)$(libdir)
-	mkdir -p $(DESTDIR)$(libdir)/../bin
-	cp libmman.dll $(DESTDIR)$(libdir)/../bin
+	mkdir -p $(DESTDIR)$(bindir)
+	cp libmman.dll $(DESTDIR)$(bindir)
 
 lib-install:
 	mkdir -p $(DESTDIR)$(libdir)
