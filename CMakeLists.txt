@@ -3,7 +3,6 @@ project (mman-win32 C)
 cmake_minimum_required (VERSION 2.8)
 
 option (BUILD_SHARED_LIBS "shared/static libs" ON) 
-option (USE_WINE "use wine for test" ON)
 option (BUILD_TESTS "tests?" OFF)
 
 set (headers mman.h)
@@ -19,12 +18,9 @@ install (FILES ${headers} DESTINATION include/sys)
 
 if (BUILD_TESTS)
   enable_testing ()
-  if (USE_WINE)
-    find_program (WINE_EXECUTABLE NAMES wine)
-  endif ()
   add_executable (t_mman test.c)
   target_link_libraries (t_mman mman)
-  add_test (NAME t_mman COMMAND ${WINE_EXECUTABLE} t_mman${CMAKE_EXECUTABLE_SUFFIX})
+  add_test (NAME t_mman COMMAND ${CMAKE_CROSSCOMPILING_EMULATOR} t_mman${CMAKE_EXECUTABLE_SUFFIX})
 endif ()
 
 
