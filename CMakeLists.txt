@@ -20,7 +20,7 @@ if (BUILD_TESTS)
   enable_testing ()
   add_executable (t_mman test.c)
   target_link_libraries (t_mman mman)
-  add_test (NAME t_mman COMMAND ${CROSSCOMPILING_EMULATOR} t_mman${CMAKE_EXECUTABLE_SUFFIX})
+  add_test (NAME t_mman COMMAND ${CMAKE_CROSSCOMPILING_EMULATOR} t_mman${CMAKE_EXECUTABLE_SUFFIX})
 endif ()
 
 
