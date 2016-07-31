@@ -15,6 +15,14 @@
 #include <_mingw.h>
 #endif
 
+/* Determine offset type */
+#include <stdint.h>
+#if defined(_WIN64)
+typedef int64_t OffsetType;
+#else
+typedef uint32_t OffsetType;
+#endif
+
 #include <sys/types.h>
 
 #ifdef __cplusplus
@@ -41,7 +49,7 @@ extern "C" {
 #define MS_SYNC         2
 #define MS_INVALIDATE   4
 
-void*   mmap(void *addr, size_t len, int prot, int flags, int fildes, off_t off);
+void*   mmap(void *addr, size_t len, int prot, int flags, int fildes, OffsetType off);
 int     munmap(void *addr, size_t len);
 int     _mprotect(void *addr, size_t len, int prot);
 int     msync(void *addr, size_t len, int flags);
