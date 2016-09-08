@@ -49,7 +49,7 @@ int     mlock(const void *addr, size_t len);
 int     munlock(const void *addr, size_t len);
 
 #ifdef __cplusplus
-};
+}
 #endif
 
 #endif /*  _SYS_MMAN_H_ */
