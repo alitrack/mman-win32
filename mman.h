@@ -15,6 +15,12 @@
 #include <_mingw.h>
 #endif
 
+#if defined(MMAN_LIBRARY)
+#define MMANSHARED_EXPORT __declspec(dllexport)
+#else
+#define MMANSHARED_EXPORT __declspec(dllimport)
+#endif
+
 /* Determine offset type */
 #include <stdint.h>
 #if defined(_WIN64)
@@ -49,12 +55,12 @@ extern "C" {
 #define MS_SYNC         2
 #define MS_INVALIDATE   4
 
-void*   mmap(void *addr, size_t len, int prot, int flags, int fildes, OffsetType off);
-int     munmap(void *addr, size_t len);
-int     _mprotect(void *addr, size_t len, int prot);
-int     msync(void *addr, size_t len, int flags);
-int     mlock(const void *addr, size_t len);
-int     munlock(const void *addr, size_t len);
+MMANSHARED_EXPORT void*   mmap(void *addr, size_t len, int prot, int flags, int fildes, OffsetType off);
+MMANSHARED_EXPORT int     munmap(void *addr, size_t len);
+MMANSHARED_EXPORT int     _mprotect(void *addr, size_t len, int prot);
+MMANSHARED_EXPORT int     msync(void *addr, size_t len, int flags);
+MMANSHARED_EXPORT int     mlock(const void *addr, size_t len);
+MMANSHARED_EXPORT int     munlock(const void *addr, size_t len);
 
 #ifdef __cplusplus
 }
