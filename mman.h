@@ -15,11 +15,18 @@
 #include <_mingw.h>
 #endif
 
+#if defined(MMAN_LIBRARY_DLL)
+/* Windows shared libraries (DLL) must be declared export when building the lib and import when building the 
+application which links against the library. */
 #if defined(MMAN_LIBRARY)
 #define MMANSHARED_EXPORT __declspec(dllexport)
 #else
 #define MMANSHARED_EXPORT __declspec(dllimport)
-#endif
+#endif /* MMAN_LIBRARY */
+#else
+/* Static libraries do not require a __declspec attribute.*/
+#define MMANSHARED_EXPORT
+#endif /* MMAN_LIBRARY_DLL */
 
 /* Determine offset type */
 #include <stdint.h>

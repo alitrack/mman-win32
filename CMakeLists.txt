@@ -10,6 +10,13 @@ set (sources mman.c)
 
 add_library (mman ${sources})
 
+if (BUILD_SHARED_LIBS)
+	target_compile_definitions(mman
+		PUBLIC MMAN_LIBRARY_DLL
+		PRIVATE MMAN_LIBRARY
+	)
+endif()
+
 install (TARGETS mman RUNTIME DESTINATION bin
                       LIBRARY DESTINATION lib${LIB_SUFFIX}
                       ARCHIVE DESTINATION lib${LIB_SUFFIX})

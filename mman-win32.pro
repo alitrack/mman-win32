@@ -2,8 +2,8 @@ QT -= core gui
 
 TARGET = mman
 TEMPLATE = lib
-# CONFIG += staticlib
 
+DEFINES += MMAN_LIBRARY_DLL
 DEFINES += MMAN_LIBRARY
 
 HEADERS += \

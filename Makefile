@@ -13,6 +13,7 @@ endif
 ifeq ($(BUILD_SHARED),yes)
 	TARGETS+=libmman.dll
 	INSTALL+=shared-install
+	CFLAGS+=-DMMAN_LIBRARY_DLL -DMMAN_LIBRARY
 endif
 
 ifeq ($(BUILD_MSVC),yes)
