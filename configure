@@ -35,6 +35,7 @@ show_help(){
   echo
   echo "  --help                    print this message"
   echo "  --prefix=PREFIX           install in PREFIX [$PREFIX]"
+  echo "  --bindir=DIR              install binaries in DIR [$PREFIX/bin]"
   echo "  --libdir=DIR              install libs in DIR [$PREFIX/lib]"
   echo "  --incdir=DIR              install includes in DIR [$PREFIX/include]"
   echo "  --enable-static           build static libraries [yes]"
@@ -87,6 +88,9 @@ for opt do
     ;;
     --prefix=*)
         PREFIX="$optval"
+    ;;
+    --bindir=*)
+        bindir="$optval"
     ;;
     --libdir=*)
         libdir="$optval"
