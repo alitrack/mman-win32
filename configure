@@ -88,6 +88,9 @@ for opt do
     ;;
     --prefix=*)
         PREFIX="$optval"
+        bindir="${PREFIX}/bin"
+        libdir="${PREFIX}/lib"
+        incdir="${PREFIX}/include/sys"
     ;;
     --bindir=*)
         bindir="$optval"
