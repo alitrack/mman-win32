@@ -87,8 +87,6 @@ void* mmap(void *addr, size_t len, int prot, int flags, int fildes, OffsetType o
     errno = 0;
     
     if (len == 0 
-        /* Unsupported flag combinations */
-        || (flags & MAP_FIXED) != 0
         /* Usupported protection combinations */
         || prot == PROT_EXEC)
     {
@@ -113,7 +111,14 @@ void* mmap(void *addr, size_t len, int prot, int flags, int fildes, OffsetType o
         return MAP_FAILED;
     }
   
-    map = MapViewOfFile(fm, desiredAccess, dwFileOffsetHigh, dwFileOffsetLow, len);
+    if ((flags & MAP_FIXED) == 0)
+    {
+        map = MapViewOfFile(fm, desiredAccess, dwFileOffsetHigh, dwFileOffsetLow, len);
+    }
+    else
+    {
+        map = MapViewOfFileEx(fm, desiredAccess, dwFileOffsetHigh, dwFileOffsetLow, len, addr);
+    }
 
     CloseHandle(fm);
   
