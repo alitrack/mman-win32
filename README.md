@@ -9,6 +9,3 @@ The mmap-win32 library implements a wrapper for mmap functions around the memory
 
 License: MIT License
 
-
-
-[![Powered by DartNode](https://dartnode.com/branding/DN-Open-Source-sm.png)](https://dartnode.com "Powered by DartNode - Free VPS for Open Source")
