@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 
 #include <stdio.h>
+#include <sysinfoapi.h>
 
 #ifndef NULL
 #define NULL    (void*)0
@@ -107,11 +108,54 @@ int test_anon_madvice_willneed()
 
     int result = madvise(map, 1024, MADV_WILLNEED);
     if(result != 0)
+    {
         printf("madvise(map, #, MADV_WILLNEED) returned unexpected error: %d\n", errno);
+        return -1;
+    }
 
     *((unsigned char*)map) = 1;
     
     result = munmap(map, 1024);
+    
+    if (result != 0)
+        printf("munmap (MAP_ANONYMOUS, PROT_READ | PROT_WRITE) returned unexpected error: %d\n", errno);
+        
+    return result;
+}
+
+int test_anon_madvice_dontneed()
+{ 
+    SYSTEM_INFO sysinfo = {};
+    GetSystemInfo(&sysinfo);
+
+    void* addr = (void*)((uintptr_t)sysinfo.dwPageSize * 100000);
+    size_t size = sysinfo.dwPageSize * 10;
+
+    void* map = mmap(addr, size, PROT_READ | PROT_WRITE,
+ 		      MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+    if (map == MAP_FAILED)
+    {
+        printf("mmap (MAP_ANONYMOUS, PROT_READ | PROT_WRITE) returned unexpected error: %d\n", errno);
+        return -1;
+    }
+
+    mlock(addr, size);
+    int result = madvise(map, size, MADV_DONTNEED);
+    if(result == 0)
+    {
+        printf("madvise(map, #, MADV_DONTNEED) advises a locked page\n");
+        return -1;
+    }
+
+    munlock(addr, size);
+    result = madvise(map, size, MADV_DONTNEED);
+    if(result != 0)
+    {
+        printf("madvise(map, #, MADV_DONTNEED) returned unexpected error: %d\n", errno);
+        return -1;
+    }
+    
+    result = munmap(map, size);
     
     if (result != 0)
         printf("munmap (MAP_ANONYMOUS, PROT_READ | PROT_WRITE) returned unexpected error: %d\n", errno);
@@ -252,7 +296,10 @@ int test_file_madvice_willneed()
 
     int result = madvise(map, 1024, MADV_WILLNEED);
     if(result != 0)
-        printf("madvise(map, #, MADV_WILLNEED) on file returned unexpected error: %d\n", errno);
+    {
+        printf("madvise(map, #, MADV_WILLNEED) returned unexpected error: %d\n", errno);
+        return -1;
+    }
 
     *((unsigned char*)map) = 1;
     
@@ -283,6 +330,7 @@ int main()
     EXEC_TEST(test_anon_map_readonly_nowrite);
     EXEC_TEST(test_anon_map_writeonly);
     EXEC_TEST(test_anon_madvice_willneed);
+    EXEC_TEST(test_anon_madvice_dontneed);
     
     EXEC_TEST(test_file_map_readwrite);
     EXEC_TEST(test_file_map_mlock_munlock);

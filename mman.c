@@ -2,6 +2,7 @@
 #include <windows.h>
 #include <errno.h>
 #include <io.h>
+#include <psapi.h>
 
 #include "mman.h"
 
@@ -130,6 +131,7 @@ static int __map_mman_error(DWORD err)
         case ERROR_INVALID_DATA:      //   13
         case ERROR_INVALID_PARAMETER: //   87
         case ERROR_NEGATIVE_SEEK:     //  131
+        case ERROR_USER_MAPPED_FILE:  //  1224
             return EINVAL;
         default:
             return -1;
@@ -303,33 +305,84 @@ int munlock(const void *addr, size_t len)
     return -1;
 }
 
+static int __madvise_willneed(void* addr, size_t size)
+{
+    WIN32_MEMORY_RANGE_ENTRY entries[1] = {};
+    entries[0].VirtualAddress = addr;
+    entries[0].NumberOfBytes = size;
+    WINBOOL success = PrefetchVirtualMemory(GetCurrentProcess(), 
+                                            sizeof(entries[0]) / sizeof(entries),
+                                            entries,
+                                            0);
+
+    if(success == 0)
+    {
+        errno = __map_mman_error(GetLastError());
+        return -1;
+    }
+
+    return 0;
+}
+
+static int __madvise_dontneed(void* addr, size_t size)
+{
+    SYSTEM_INFO sysinfo = {};
+    GetSystemInfo(&sysinfo);
+
+    // Must be page aligned
+    if((uintptr_t)addr % sysinfo.dwPageSize != 0 || size % sysinfo.dwPageSize != 0)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+
+    // check if there is a page in the region that is locked
+    PSAPI_WORKING_SET_EX_INFORMATION wset_info = {.VirtualAddress = addr};
+    WINBOOL locked = 0;
+
+    while((uintptr_t)wset_info.VirtualAddress < (uintptr_t)addr + size - sysinfo.dwPageSize &&
+          locked == 0)
+    {
+        if(QueryWorkingSetEx(GetCurrentProcess(), &wset_info, sizeof(wset_info)) == 0)
+        {
+            errno = __map_mman_error(GetLastError());
+            return -1;
+        }
+
+        locked = wset_info.VirtualAttributes.Valid && wset_info.VirtualAttributes.Locked;
+        wset_info.VirtualAddress = (PVOID)((uintptr_t)wset_info.VirtualAddress + sysinfo.dwPageSize);
+    }
+
+    if(locked == 1)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+
+    DWORD err = OfferVirtualMemory(addr, size, VmOfferPriorityBelowNormal);
+    if(err != ERROR_SUCCESS)
+    {
+        errno = __map_mman_error(err);
+        return -1;
+    }
+
+    return 0;
+}
+
 int madvise(void* addr, size_t size, int advice)
 {
+    errno = 0;
     switch(advice)
     {
         case MADV_WILLNEED:
-        {
-            WIN32_MEMORY_RANGE_ENTRY entries[1] = {};
-            entries[0].VirtualAddress = addr;
-            entries[0].NumberOfBytes = size;
-            WINBOOL success = PrefetchVirtualMemory(GetCurrentProcess(), 
-                                                 sizeof(entries[0]) / sizeof(entries),
-                                                 entries,
-                                                 0);
-            if(success == 0)
-            {
-                errno = __map_mman_error(GetLastError());
-                return -1;
-            }
-            return 0;
-        }
+            return __madvise_willneed(addr, size);
+        case MADV_DONTNEED: // OfferVirtualMemory will cause addressing error
+            return __madvise_dontneed(addr, size);
         // Below has no equivalents under Windows (I have not yet found any)
         case MADV_NORMAL:
         case MADV_RANDOM:
         case MADV_SEQUENTIAL:
-        case MADV_DONTNEED: // OfferVirtualMemory will cause addressing error
-            return 0;
         default:
-            return EINVAL;
+            return 0;
     }
 }

@@ -67,7 +67,18 @@ extern "C" {
 #define	MADV_RANDOM     1
 #define	MADV_SEQUENTIAL 2
 #define	MADV_WILLNEED   3
-#define	MADV_DONTNEED   4
+#define	MADV_DONTNEED   4 
+/* MADV_DONTNEED does not supported mapped files and will only work on page aligned address and size.
+This is an OS limitation.
+*/
+
+/* POSIX equivalents for madvice. */
+#define posix_madvise         madvise
+#define	POSIX_MADV_NORMAL     MADV_NORMAL
+#define	POSIX_MADV_RANDOM     MADV_RANDOM
+#define	POSIX_MADV_SEQUENTIAL MADV_SEQUENTIAL
+#define	POSIX_MADV_WILLNEED   MADV_WILLNEED
+#define	POSIX_MADV_DONTNEED   MADV_DONTNEED
 
 MMANSHARED_EXPORT void*   mmap(void *addr, size_t len, int prot, int flags, int fildes, OffsetType off);
 MMANSHARED_EXPORT int     munmap(void *addr, size_t len);
