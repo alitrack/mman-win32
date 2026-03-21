@@ -376,7 +376,7 @@ int madvise(void* addr, size_t size, int advice)
     {
         case MADV_WILLNEED:
             return __madvise_willneed(addr, size);
-        case MADV_DONTNEED: // OfferVirtualMemory will cause addressing error
+        case MADV_DONTNEED:
             return __madvise_dontneed(addr, size);
         // Below has no equivalents under Windows (I have not yet found any)
         case MADV_NORMAL:
