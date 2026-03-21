@@ -307,12 +307,12 @@ int munlock(const void *addr, size_t len)
 
 static int __madvise_willneed(void* addr, size_t size)
 {
-    WIN32_MEMORY_RANGE_ENTRY entries[1] = {};
-    entries[0].VirtualAddress = addr;
-    entries[0].NumberOfBytes = size;
+    WIN32_MEMORY_RANGE_ENTRY region = {};
+    region.VirtualAddress = addr;
+    region.NumberOfBytes = size;
     WINBOOL success = PrefetchVirtualMemory(GetCurrentProcess(), 
-                                            sizeof(entries[0]) / sizeof(entries),
-                                            entries,
+                                            1,
+                                            &region,
                                             0);
 
     if(success == 0)
