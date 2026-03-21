@@ -62,12 +62,20 @@ extern "C" {
 #define MS_SYNC         2
 #define MS_INVALIDATE   4
 
+/* Flags for madvice. */
+#define	MADV_NORMAL     0
+#define	MADV_RANDOM     1
+#define	MADV_SEQUENTIAL 2
+#define	MADV_WILLNEED   3
+#define	MADV_DONTNEED   4
+
 MMANSHARED_EXPORT void*   mmap(void *addr, size_t len, int prot, int flags, int fildes, OffsetType off);
 MMANSHARED_EXPORT int     munmap(void *addr, size_t len);
 MMANSHARED_EXPORT int     _mprotect(void *addr, size_t len, int prot);
 MMANSHARED_EXPORT int     msync(void *addr, size_t len, int flags);
 MMANSHARED_EXPORT int     mlock(const void *addr, size_t len);
 MMANSHARED_EXPORT int     munlock(const void *addr, size_t len);
+MMANSHARED_EXPORT int     madvise(void* addr, size_t size, int advice);
 
 #ifdef __cplusplus
 }
