@@ -1,2 +1,12 @@
 x64
-mman.VC.db
+mman.VC.db*.o
+*.obj
+*.exe
+*.a
+*.lib
+*.so
+*.dll
+*.def
+*.bak
+config.mak
+*.dat
