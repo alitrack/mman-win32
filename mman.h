@@ -68,8 +68,9 @@ extern "C" {
 #define	MADV_SEQUENTIAL 2
 #define	MADV_WILLNEED   3
 #define	MADV_DONTNEED   4 
-/* MADV_DONTNEED does not supported mapped files and will only work on page aligned address and size.
-This is an OS limitation.
+/* MADV_DONTNEED offers the region's working-set pages back to the system
+   via OfferVirtualMemory (Windows 11 21H2+); on older systems it is a no-op.
+   It requires a page-aligned address and size.
 */
 
 /* POSIX equivalents for madvice. */

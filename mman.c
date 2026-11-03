@@ -10,6 +10,48 @@
 #define FILE_MAP_EXECUTE    0x0020
 #endif /* FILE_MAP_EXECUTE */
 
+/* PrefetchVirtualMemory (Vista+) and OfferVirtualMemory (Windows 11 21H2+)
+ * may be undeclared by older mingw-w64 / SDK headers and are absent on
+ * older Windows versions. Resolve them at runtime and degrade to a no-op
+ * when unavailable, so the build does not depend on a particular header set.
+ */
+typedef struct __mman_mem_range
+{
+    PVOID   VirtualAddress;
+    SIZE_T  NumberOfBytes;
+} __mman_mem_range;
+
+typedef WINBOOL (WINAPI *__pvm_t)(HANDLE, DWORD, const __mman_mem_range *, DWORD);
+typedef DWORD   (WINAPI *__ovm_t)(PVOID, SIZE_T, DWORD);
+
+static __pvm_t pvm_fn(void)
+{
+    static __pvm_t fn = NULL;
+    static int done = 0;
+    if (!done)
+    {
+        HMODULE k = GetModuleHandleA("kernel32.dll");
+        if (k)
+            fn = (__pvm_t)GetProcAddress(k, "PrefetchVirtualMemory");
+        done = 1;
+    }
+    return fn;
+}
+
+static __ovm_t ovh_fn(void)
+{
+    static __ovm_t fn = NULL;
+    static int done = 0;
+    if (!done)
+    {
+        HMODULE k = GetModuleHandleA("kernel32.dll");
+        if (k)
+            fn = (__ovm_t)GetProcAddress(k, "OfferVirtualMemory");
+        done = 1;
+    }
+    return fn;
+}
+
 static int __map_mman_error(DWORD err)
 {
     // Unwrap FACILITY_WIN32 HRESULT errors.
@@ -134,7 +176,7 @@ static int __map_mman_error(DWORD err)
         case ERROR_USER_MAPPED_FILE:  //  1224
             return EINVAL;
         default:
-            return -1;
+            return EINVAL;
     }
 }
 
@@ -307,15 +349,16 @@ int munlock(const void *addr, size_t len)
 
 static int __madvise_willneed(void* addr, size_t size)
 {
-    WIN32_MEMORY_RANGE_ENTRY region = {};
+    __pvm_t pvm = pvm_fn();
+    __mman_mem_range region;
+
+    if (pvm == NULL)
+        return 0; /* PrefetchVirtualMemory unavailable */
+
     region.VirtualAddress = addr;
     region.NumberOfBytes = size;
-    WINBOOL success = PrefetchVirtualMemory(GetCurrentProcess(), 
-                                            1,
-                                            &region,
-                                            0);
 
-    if(success == 0)
+    if (pvm(GetCurrentProcess(), 1, &region, 0) == 0)
     {
         errno = __map_mman_error(GetLastError());
         return -1;
@@ -327,23 +370,26 @@ static int __madvise_willneed(void* addr, size_t size)
 static int __madvise_dontneed(void* addr, size_t size)
 {
     SYSTEM_INFO sysinfo = {};
+    __ovm_t ovh;
+
     GetSystemInfo(&sysinfo);
 
     // Must be page aligned
-    if((uintptr_t)addr % sysinfo.dwPageSize != 0 || size % sysinfo.dwPageSize != 0)
+    if ((uintptr_t)addr % sysinfo.dwPageSize != 0 || size % sysinfo.dwPageSize != 0)
     {
         errno = EINVAL;
         return -1;
     }
 
-    // check if there is a page in the region that is locked
+    // Reject the region if any of its pages is locked (pure validation, works
+    // regardless of OfferVirtualMemory availability).
     PSAPI_WORKING_SET_EX_INFORMATION wset_info = {.VirtualAddress = addr};
     WINBOOL locked = 0;
 
-    while((uintptr_t)wset_info.VirtualAddress < (uintptr_t)addr + size - sysinfo.dwPageSize &&
-          locked == 0)
+    while ((uintptr_t)wset_info.VirtualAddress < (uintptr_t)addr + size &&
+           locked == 0)
     {
-        if(QueryWorkingSetEx(GetCurrentProcess(), &wset_info, sizeof(wset_info)) == 0)
+        if (QueryWorkingSetEx(GetCurrentProcess(), &wset_info, sizeof(wset_info)) == 0)
         {
             errno = __map_mman_error(GetLastError());
             return -1;
@@ -353,16 +399,21 @@ static int __madvise_dontneed(void* addr, size_t size)
         wset_info.VirtualAddress = (PVOID)((uintptr_t)wset_info.VirtualAddress + sysinfo.dwPageSize);
     }
 
-    if(locked == 1)
+    if (locked == 1)
     {
         errno = EINVAL;
         return -1;
     }
 
-    DWORD err = OfferVirtualMemory(addr, size, VmOfferPriorityBelowNormal);
-    if(err != ERROR_SUCCESS)
+    // OfferVirtualMemory (Windows 11 21H2+) unavailable: degrade to no-op.
+    ovh = ovh_fn();
+    if (ovh == NULL)
+        return 0;
+
+    DWORD ovm_err = ovh(addr, size, 1 /* VmOfferPriorityBelowNormal */);
+    if (ovm_err != ERROR_SUCCESS)
     {
-        errno = __map_mman_error(err);
+        errno = __map_mman_error(ovm_err); /* failure code is in the return value */
         return -1;
     }
 
