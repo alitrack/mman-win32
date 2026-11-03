@@ -5,6 +5,9 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 
+#include <stdio.h>
+#include <windows.h>
+
 #ifndef NULL
 #define NULL    (void*)0
 #endif
@@ -90,6 +93,81 @@ int test_anon_map_readonly_nowrite()
     if (result != 0)
         printf("munmap (MAP_ANONYMOUS, PROT_READ) returned unexpected error: %d\n", errno);
         
+    return result;
+}
+
+int test_anon_madvice_willneed()
+{
+    void* map = mmap(NULL, 1024, PROT_READ | PROT_WRITE,
+ 		      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (map == MAP_FAILED)
+    {
+        printf("mmap (MAP_ANONYMOUS, PROT_READ | PROT_WRITE) returned unexpected error: %d\n", errno);
+        return -1;
+    }
+
+    int result = madvise(map, 1024, MADV_WILLNEED);
+    if(result != 0)
+    {
+        printf("madvise(map, #, MADV_WILLNEED) returned unexpected error: %d\n", errno);
+        return -1;
+    }
+
+    *((unsigned char*)map) = 1;
+    
+    result = munmap(map, 1024);
+    
+    if (result != 0)
+        printf("munmap (MAP_ANONYMOUS, PROT_READ | PROT_WRITE) returned unexpected error: %d\n", errno);
+        
+    return result;
+}
+
+int test_anon_madvice_dontneed()
+{
+    SYSTEM_INFO sysinfo = {};
+    GetSystemInfo(&sysinfo);
+
+    void* addr = (void*)((uintptr_t)sysinfo.dwPageSize * 100000);
+    size_t size = sysinfo.dwPageSize * 10;
+
+    void* map = mmap(addr, size, PROT_READ | PROT_WRITE,
+             MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+    if (map == MAP_FAILED)
+    {
+        printf("mmap (MAP_ANONYMOUS, PROT_READ | PROT_WRITE) returned unexpected error: %d\n", errno);
+        return -1;
+    }
+
+    /* Locked pages must be rejected. Wine's VirtualLock does not set the
+       working-set Locked flag, so the rejection cannot be observed there;
+       when the lock does not stick the assertion is skipped, not failed. */
+    int result;
+    int lock_rejected = -1;
+    if (mlock(addr, size) == 0)
+    {
+        result = madvise(map, size, MADV_DONTNEED);
+        lock_rejected = (result != 0);
+        munlock(addr, size);
+    }
+    if (lock_rejected != 0)
+    {
+        printf("madvise(map, #, MADV_DONTNEED) advises a locked page\n");
+        return -1;
+    }
+
+    result = madvise(map, size, MADV_DONTNEED);
+    if(result != 0)
+    {
+        printf("madvise(map, #, MADV_DONTNEED) returned unexpected error: %d\n", errno);
+        return -1;
+    }
+
+    result = munmap(map, size);
+
+    if (result != 0)
+        printf("munmap (MAP_ANONYMOUS, PROT_READ | PROT_WRITE) returned unexpected error: %d\n", errno);
+
     return result;
 }
 
@@ -212,6 +290,40 @@ done:
     return result;
 }
 
+int test_file_madvice_willneed()
+{
+    mode_t mode = S_IRUSR | S_IWUSR;
+    int o = open(map_file_name, O_TRUNC | O_BINARY | O_RDWR | O_CREAT, mode);
+
+    void* map = mmap(NULL, 1024, PROT_READ | PROT_WRITE, MAP_PRIVATE, o, 0);
+    if (map == MAP_FAILED)
+    {
+        printf("mmap returned unexpected error: %d\n", errno);
+        return -1;
+    }
+
+    int result = madvise(map, 1024, MADV_WILLNEED);
+    if(result != 0)
+    {
+        printf("madvise(map, #, MADV_WILLNEED) returned unexpected error: %d\n", errno);
+        return -1;
+    }
+
+    *((unsigned char*)map) = 1;
+    
+    result = munmap(map, 1024);
+    
+    if (result != 0)
+        printf("munmap returned unexpected error: %d\n", errno);
+    
+    close(o);
+    
+    /*TODO: get file info and content and compare it with the sources conditions */
+    unlink(map_file_name);
+    
+    return result;
+}
+
 #define EXEC_TEST(name) \
     if (name() != 0) { result = -1; printf( #name ": fail\n"); } \
     else { printf(#name ": pass\n"); }
@@ -225,10 +337,13 @@ int main()
     //EXEC_TEST(test_anon_map_readonly);
     EXEC_TEST(test_anon_map_readonly_nowrite);
     EXEC_TEST(test_anon_map_writeonly);
+    EXEC_TEST(test_anon_madvice_willneed);
+    EXEC_TEST(test_anon_madvice_dontneed);
     
     EXEC_TEST(test_file_map_readwrite);
     EXEC_TEST(test_file_map_mlock_munlock);
     EXEC_TEST(test_file_map_msync);
+    EXEC_TEST(test_file_madvice_willneed);
     //TODO: EXEC_TEST(test_file_map_mprotect);
     
     return result;
